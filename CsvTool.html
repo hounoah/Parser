@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV + JSON Parser</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Hahmlet', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #2d3748;
+            height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .container {
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #000000 0%, #62E09D 100%);
+            color: white;
+            padding: 15px 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+            padding: 30px;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .sidebar {
+            border: 2px dashed #999;
+            border-radius: 8px;
+            padding: 15px;
+            overflow-y: auto;
+        }
+
+        .upload-section {
+            margin-bottom: 20px;
+        }
+
+        .upload-section h3 {
+            margin-bottom: 10px;
+            color: #333;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .uploaded-filename {
+            font-size: 13px;
+            color: #000000;
+            margin-bottom: 8px;
+            word-break: break-all;
+        }
+
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: 12px;
+            background: #3fa770;
+            color: white;
+            text-align: center;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.3s;
+            font-weight: 500;
+        }
+
+        .file-input-label:hover {
+            background: #2d8659;
+        }
+
+        .file-input-wrapper.drag-over .file-input-label {
+            background: #2d8659;
+            border: 2px solid #1a5a3f;
+        }
+
+        .fields-section {
+            margin-top: 12px;
+        }
+
+        .fields-section h3 {
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 8px;
+            border: 1px solid #999;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .field-dropdown {
+            width: 100%;
+            padding: 8px;
+            border: 2px solid #999;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: border-color 0.3s;
+            margin-bottom: 6px;
+        }
+
+        .field-dropdown:focus {
+            outline: none;
+            border-color: #3fa770;
+        }
+
+        .field-dropdown:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .field-dropdown.hidden {
+            display: none;
+        }
+
+        .fields-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .clear-filters-btn {
+            padding: 4px 8px;
+            background: #3fa770;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+            display: none;
+        }
+
+        .clear-filters-btn:hover {
+            background: #2d8659;
+        }
+
+        .clear-filters-btn.show {
+            display: inline-block;
+        }
+
+        .main-view {
+            border: 1px solid #999;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .main-view.drag-over {
+            border: 2px dashed #3fa770;
+        }
+
+        .main-view.drag-over .data-table {
+            background: #f0f8f5;
+        }
+
+        .total-rows {
+            padding: 12px 16px;
+            background: white;
+            font-weight: 600;
+            font-size: 14px;
+            color: #333;
+            border-bottom: 1px solid #999;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            flex-shrink: 0;
+        }
+
+        .total-rows-text {
+            flex: 0 0 auto;
+        }
+
+        .data-search-box {
+            flex: 0 0 250px;
+            padding: 8px 12px;
+            border: 1px solid #999;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: normal;
+        }
+
+        .data-search-box:focus {
+            outline: none;
+            border-color: #3fa770;
+            box-shadow: 0 0 0 3px rgba(63, 167, 112, 0.1);
+        }
+
+        .export-btn {
+            flex: 0 0 auto;
+            padding: 8px 16px;
+            background: #3fa770;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .export-btn:hover {
+            background: #2d8659;
+        }
+
+        .column-labels-wrapper {
+            flex-shrink: 0;
+            overflow: hidden;
+            margin-right: 17px;
+        }
+
+        .column-labels {
+            display: flex;
+            background: #f5f5f5;
+            border-bottom: 2px solid #999;
+            width: max-content;
+        }
+
+        .column-label {
+            flex: 0 0 200px;
+            width: 200px;
+            padding: 12px 16px;
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+            color: white;
+            text-align: center;
+            border-right: 1px solid rgba(255, 255, 255, 0.2);
+            box-sizing: border-box;
+        }
+
+        .data-table {
+            flex: 1;
+            overflow: auto;
+            background: white;
+        }
+
+        .data-table.drag-over {
+            background: #f0f8f5;
+            border: 2px dashed #3fa770;
+        }
+
+        .table-row {
+            display: flex;
+            border-bottom: 1px solid #999;
+            width: max-content;
+        }
+
+        .table-row:hover {
+            background: #f9f9f9;
+        }
+
+        .table-cell {
+            flex: 0 0 200px;
+            width: 200px;
+            padding: 12px 16px;
+            font-size: 13px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            border-right: 1px solid #999;
+            box-sizing: border-box;
+        }
+
+        .color-1 { background: #2d3748; }
+        .color-2 { background: #3a4555; }
+        .color-3 { background: #475362; }
+        .color-4 { background: #54616f; }
+        .color-5 { background: #616f7c; }
+        .color-6 { background: #6e7d89; }
+
+        .empty-state {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #999;
+            font-size: 16px;
+        }
+
+        .status-message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            text-align: center;
+            display: none;
+        }
+
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+            display: block;
+        }
+
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+
+        .highlight {
+            background: yellow;
+            font-weight: 600;
+        }
+
+        @media (max-width: 1024px) {
+            .content {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+
+            .sidebar {
+                height: 200px;
+            }
+
+            .main-view {
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>CSV + JSON Parser</h1>
+            <p>Parsing and viewing of formatted JSON + CSV data, not request bodies!</p>
+        </div>
+
+        <div class="content">
+            <div class="sidebar">
+                <div class="upload-section">
+                    <h3>Upload File</h3>
+                    <div class="uploaded-filename" id="uploadedFilename"></div>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="fileInput" accept=".csv,.json">
+                        <label for="fileInput" class="file-input-label">Choose CSV or JSON</label>
+                    </div>
+                    <div class="status-message" id="statusMessage"></div>
+                </div>
+
+                <div class="fields-section">
+                    <div class="fields-header">
+                        <h3>Available Fields</h3>
+                        <button class="clear-filters-btn" id="clearFiltersBtn">Clear Filters</button>
+                    </div>
+                    <div id="dropdownContainer">
+                        <select class="field-dropdown" id="fieldDropdown0">
+                            <option value="">Select a field to display</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="main-view">
+                <div class="column-labels-wrapper">
+                    <div class="column-labels" id="columnLabels"></div>
+                </div>
+                <div class="data-table" id="dataTable">
+                    <div class="empty-state">Drag and drop or upload a file to get started</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allData = [];
+        let allFields = [];
+        const colors = ['color-1', 'color-2', 'color-3', 'color-4', 'color-5', 'color-6'];
+
+        // File upload handler
+        const fileInput = document.getElementById('fileInput');
+        const dropdownContainer = document.getElementById('dropdownContainer');
+
+        if (fileInput) {
+            fileInput.addEventListener('change', handleFileUpload);
+        } else {
+            console.error('File input element not found');
+        }
+
+        // Attach change listener to first dropdown
+        document.getElementById('fieldDropdown0').addEventListener('change', function() {
+            handleFieldChange(0);
+            updateClearFiltersButton();
+        });
+        
+        // Drag and drop functionality for main view
+        const mainView = document.querySelector('.main-view');
+        if (mainView) {
+            mainView.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                mainView.classList.add('drag-over');
+            });
+            
+            mainView.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                mainView.classList.remove('drag-over');
+            });
+            
+            mainView.addEventListener('drop', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                mainView.classList.remove('drag-over');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const file = files[0];
+                    // Check if it's a CSV or JSON file
+                    if (file.name.endsWith('.csv') || file.name.endsWith('.json')) {
+                        document.getElementById('uploadedFilename').textContent = file.name;
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            try {
+                                const content = event.target.result;
+                                
+                                if (file.name.endsWith('.csv')) {
+                                    parseCSV(content);
+                                } else if (file.name.endsWith('.json')) {
+                                    parseJSON(content);
+                                }
+                            } catch (error) {
+                                showStatus('Error parsing file: ' + error.message, 'error');
+                            }
+                        };
+                        reader.onerror = () => {
+                            showStatus('Error reading file', 'error');
+                        };
+                        reader.readAsText(file);
+                    } else {
+                        showStatus('Invalid file type. Please upload CSV or JSON.', 'error');
+                    }
+                }
+            });
+        }
+        
+        // Drag and drop functionality for file input wrapper
+        const fileInputWrapper = document.querySelector('.file-input-wrapper');
+        if (fileInputWrapper) {
+            fileInputWrapper.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                fileInputWrapper.classList.add('drag-over');
+            });
+            
+            fileInputWrapper.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                fileInputWrapper.classList.remove('drag-over');
+            });
+            
+            fileInputWrapper.addEventListener('drop', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                fileInputWrapper.classList.remove('drag-over');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const file = files[0];
+                    // Check if it's a CSV or JSON file
+                    if (file.name.endsWith('.csv') || file.name.endsWith('.json')) {
+                        document.getElementById('uploadedFilename').textContent = file.name;
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            try {
+                                const content = event.target.result;
+                                
+                                if (file.name.endsWith('.csv')) {
+                                    parseCSV(content);
+                                } else if (file.name.endsWith('.json')) {
+                                    parseJSON(content);
+                                }
+                            } catch (error) {
+                                showStatus('Error parsing file: ' + error.message, 'error');
+                            }
+                        };
+                        reader.onerror = () => {
+                            showStatus('Error reading file', 'error');
+                        };
+                        reader.readAsText(file);
+                    } else {
+                        showStatus('Invalid file type. Please upload CSV or JSON.', 'error');
+                    }
+                }
+            });
+        }
+        
+        // Clear filters button
+        const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+        if (clearFiltersBtn) {
+            clearFiltersBtn.addEventListener('click', clearAllFilters);
+        }
+
+        function handleFileUpload(e) {
+            console.log('File upload triggered');
+            const file = e.target.files[0];
+            if (!file) {
+                console.log('No file selected');
+                return;
+            }
+
+            console.log('File selected:', file.name);
+            document.getElementById('uploadedFilename').textContent = file.name;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const content = event.target.result;
+                    console.log('File read successfully');
+                    
+                    // Try to determine format: JSON first, then CSV
+                    let parsed = false;
+                    
+                    // Try JSON parsing first
+                    const trimmedContent = content.trim();
+                    if (trimmedContent.startsWith('{') || trimmedContent.startsWith('[')) {
+                        try {
+                            console.log('Attempting JSON parse...');
+                            parseJSON(content);
+                            parsed = true;
+                        } catch (jsonError) {
+                            console.log('JSON parse failed:', jsonError.message);
+                            // Try to extract JSON objects from content
+                            try {
+                                console.log('Attempting smart JSON extraction...');
+                                parseSmartJSON(content);
+                                parsed = true;
+                            } catch (smartError) {
+                                console.log('Smart JSON extraction failed:', smartError.message);
+                                // Try JSONL format (one JSON object per line)
+                                try {
+                                    console.log('Attempting JSONL parse...');
+                                    parseJSONL(content);
+                                    parsed = true;
+                                } catch (jsonlError) {
+                                    console.log('JSONL parse failed:', jsonlError.message);
+                                }
+                            }
+                        }
+                    }
+                    
+                    // If not JSON, try CSV
+                    if (!parsed) {
+                        console.log('Parsing as CSV');
+                        try {
+                            parseCSV(content);
+                            parsed = true;
+                        } catch (csvError) {
+                            console.error('CSV parse error:', csvError);
+                            showStatus('Error parsing file: ' + csvError.message, 'error');
+                        }
+                    }
+                    
+                    // If still not parsed, show error
+                    if (!parsed) {
+                        showStatus('Invalid file format. Please upload valid CSV or JSON.', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error parsing file:', error);
+                    showStatus('Error parsing file: ' + error.message, 'error');
+                }
+            };
+            reader.onerror = () => {
+                console.error('FileReader error');
+                showStatus('Error reading file', 'error');
+            };
+            reader.readAsText(file);
+        }
+
+        function parseCSV(content) {
+            const lines = content.split('\n').filter(line => line.trim());
+            console.log('Total lines after filtering:', lines.length);
+            
+            if (lines.length < 2) {
+                showStatus('CSV must have headers and data', 'error');
+                return;
+            }
+
+            allFields = lines[0].split(',').map(f => f.trim());
+            console.log('Fields parsed:', allFields);
+            
+            allData = lines.slice(1).map(line => {
+                const values = line.split(',').map(v => v.trim());
+                const row = {};
+                allFields.forEach((field, idx) => {
+                    row[field] = values[idx] || '';
+                });
+                return row;
+            });
+
+            console.log('Data parsed:', allData.length, 'records');
+            populateDropdown();
+            displayData(allFields);
+            showStatus(`Loaded ${allData.length} records with ${allFields.length} fields`, 'success');
+        }
+
+        function flattenObject(obj, prefix = '') {
+            const result = {};
+            for (const key of Object.keys(obj)) {
+                const fullKey = prefix ? prefix + '.' + key : key;
+                const value = obj[key];
+                if (value && typeof value === 'object' && !Array.isArray(value)) {
+                    Object.assign(result, flattenObject(value, fullKey));
+                } else if (Array.isArray(value)) {
+                    result[fullKey] = value.map(item => 
+                        typeof item === 'object' ? JSON.stringify(item) : item
+                    ).join(', ');
+                } else {
+                    result[fullKey] = value;
+                }
+            }
+            return result;
+        }
+
+        function extractRecords(data) {
+            // If it's already an array of objects, use it directly
+            if (Array.isArray(data)) {
+                if (data.length === 0) return [];
+                // Array of primitives - wrap each in an object
+                if (typeof data[0] !== 'object' || data[0] === null) {
+                    return data.map(item => ({ value: String(item) }));
+                }
+                return data.map(item => flattenObject(item));
+            }
+            
+            // If it's an object, look for the first key that holds an array of objects
+            if (typeof data === 'object' && data !== null) {
+                const keys = Object.keys(data);
+                
+                // Check each key for an array of objects
+                for (const key of keys) {
+                    const val = data[key];
+                    if (Array.isArray(val) && val.length > 0) {
+                        if (typeof val[0] === 'object' && val[0] !== null) {
+                            return val.map(item => flattenObject(item));
+                        }
+                        // Array of primitives under a key - use key as column name
+                        return val.map(item => ({ [key]: String(item) }));
+                    }
+                }
+                
+                // No array found - flatten the object itself as a single record
+                return [flattenObject(data)];
+            }
+            
+            return [];
+        }
+
+        function parseSmartJSON(content) {
+            // Try to find the array portion [...] in the content
+            const arrayStart = content.indexOf('[');
+            const arrayEnd = content.lastIndexOf(']');
+            
+            if (arrayStart !== -1 && arrayEnd > arrayStart) {
+                const arrayContent = content.substring(arrayStart, arrayEnd + 1);
+                try {
+                    const arr = JSON.parse(arrayContent);
+                    if (Array.isArray(arr) && arr.length > 0) {
+                        allData = arr.map(item => 
+                            typeof item === 'object' && item !== null ? flattenObject(item) : { value: String(item) }
+                        );
+                        allFields = [...new Set(allData.flatMap(Object.keys))];
+                        populateDropdown();
+                        displayData(allFields);
+                        showStatus(`Loaded ${allData.length} record(s) with ${allFields.length} fields`, 'success');
+                        return;
+                    }
+                } catch (e) {
+                    // Array extraction failed, try regex approach
+                }
+            }
+            
+            // Regex approach: find all {...} objects with simple key-value pairs
+            const objectMatches = [];
+            const regex = /\{[^{}]*\}/g;
+            let match;
+            while ((match = regex.exec(content)) !== null) {
+                try {
+                    const obj = JSON.parse(match[0]);
+                    if (typeof obj === 'object' && obj !== null && Object.keys(obj).length > 0) {
+                        objectMatches.push(obj);
+                    }
+                } catch (e) {
+                    // Skip invalid matches
+                }
+            }
+            
+            if (objectMatches.length > 0) {
+                allData = objectMatches.map(item => flattenObject(item));
+                allFields = [...new Set(allData.flatMap(Object.keys))];
+                populateDropdown();
+                displayData(allFields);
+                showStatus(`Loaded ${allData.length} record(s) with ${allFields.length} fields`, 'success');
+                return;
+            }
+            
+            throw new Error('Could not extract JSON data');
+        }
+
+        function parseJSON(content) {
+            const data = JSON.parse(content);
+            console.log('JSON parsed successfully');
+            
+            allData = extractRecords(data);
+            
+            if (allData.length === 0) {
+                throw new Error('No data records found in JSON');
+            }
+            
+            allFields = [...new Set(allData.flatMap(Object.keys))];
+            console.log('Parsed', allData.length, 'records with fields:', allFields);
+            
+            populateDropdown();
+            displayData(allFields);
+            showStatus(`Loaded ${allData.length} record(s) with ${allFields.length} fields`, 'success');
+        }
+
+        function parseJSONL(content) {
+            const lines = content.trim().split('\n').filter(line => line.trim());
+            console.log('Attempting to parse', lines.length, 'lines as JSONL');
+            
+            allData = [];
+            const fieldSet = new Set();
+            
+            lines.forEach((line, idx) => {
+                try {
+                    const obj = JSON.parse(line);
+                    if (typeof obj === 'object' && obj !== null) {
+                        allData.push(obj);
+                        Object.keys(obj).forEach(key => fieldSet.add(key));
+                    }
+                } catch (e) {
+                    console.warn(`Line ${idx + 1} is not valid JSON`);
+                }
+            });
+            
+            if (allData.length === 0) {
+                throw new Error('No valid JSON objects found in JSONL');
+            }
+            
+            allFields = Array.from(fieldSet);
+            console.log('JSONL parsed:', allData.length, 'records with', allFields.length, 'fields');
+            populateDropdown();
+            displayData(allFields);
+            showStatus(`Loaded ${allData.length} record(s) with ${allFields.length} fields`, 'success');
+        }
+
+        function populateDropdown() {
+            const dropdowns = dropdownContainer.querySelectorAll('.field-dropdown');
+            
+            dropdowns.forEach((dropdown) => {
+                const currentVal = dropdown.value;
+                dropdown.innerHTML = '<option value="">Select a field to display</option>';
+                allFields.forEach(field => {
+                    const option = document.createElement('option');
+                    option.value = field;
+                    option.textContent = field;
+                    dropdown.appendChild(option);
+                });
+                dropdown.value = currentVal;
+            });
+            console.log('Dropdowns populated with', allFields.length, 'fields');
+        }
+
+        function handleFieldChange(dropdownIndex) {
+            const dropdowns = Array.from(dropdownContainer.querySelectorAll('.field-dropdown'));
+            const currentDropdown = dropdowns[dropdownIndex];
+            
+            // Collect all selected fields
+            const selectedFields = [];
+            dropdowns.forEach(dd => {
+                if (dd.value) selectedFields.push(dd.value);
+            });
+            
+            // Update all dropdowns to disable already selected fields
+            const selectedSet = new Set(selectedFields);
+            dropdowns.forEach((dropdown) => {
+                const options = dropdown.querySelectorAll('option');
+                options.forEach((option) => {
+                    if (option.value === '') {
+                        option.disabled = false;
+                    } else if (selectedSet.has(option.value) && option.value !== dropdown.value) {
+                        option.disabled = true;
+                    } else {
+                        option.disabled = false;
+                    }
+                });
+            });
+            
+            // If current dropdown has a value selected, add a new dropdown (if more fields available)
+            if (currentDropdown.value) {
+                // Remove any empty dropdowns after the current one
+                for (let i = dropdowns.length - 1; i > dropdownIndex; i--) {
+                    if (!dropdowns[i].value) {
+                        dropdowns[i].remove();
+                    }
+                }
+                
+                // Add a new dropdown if there are still unselected fields
+                if (selectedFields.length < allFields.length) {
+                    addNewDropdown();
+                }
+            } else {
+                // If cleared, remove all empty dropdowns after this one
+                for (let i = dropdowns.length - 1; i > dropdownIndex; i--) {
+                    dropdowns[i].remove();
+                }
+                // Add back one empty dropdown after if there's a selected field before
+                if (dropdownIndex > 0 || selectedFields.length > 0) {
+                    // Only add if the current cleared one isn't the trailing empty one
+                }
+            }
+            
+            // Display selected fields
+            if (selectedFields.length > 0) {
+                displayData(selectedFields);
+            } else {
+                displayData(allFields);
+            }
+        }
+
+        function addNewDropdown() {
+            const idx = dropdownContainer.querySelectorAll('.field-dropdown').length;
+            const select = document.createElement('select');
+            select.className = 'field-dropdown';
+            select.id = 'fieldDropdown' + idx;
+            select.innerHTML = '<option value="">Select a field to display</option>';
+            allFields.forEach(field => {
+                const option = document.createElement('option');
+                option.value = field;
+                option.textContent = field;
+                select.appendChild(option);
+            });
+            
+            // Disable already selected options
+            const selectedFields = getSelectedFields();
+            const selectedSet = new Set(selectedFields);
+            select.querySelectorAll('option').forEach(option => {
+                if (option.value && selectedSet.has(option.value)) {
+                    option.disabled = true;
+                }
+            });
+            
+            select.addEventListener('change', function() {
+                handleFieldChange(Array.from(dropdownContainer.querySelectorAll('.field-dropdown')).indexOf(select));
+                updateClearFiltersButton();
+            });
+            
+            dropdownContainer.appendChild(select);
+        }
+
+        function getSelectedFields() {
+            const dropdowns = dropdownContainer.querySelectorAll('.field-dropdown');
+            const fields = [];
+            dropdowns.forEach(dd => {
+                if (dd.value) fields.push(dd.value);
+            });
+            return fields;
+        }
+
+
+
+        function displayData(fields) {
+            if (allData.length === 0) return;
+
+            const mainView = document.querySelector('.main-view');
+            
+            // Create or update total rows display
+            let totalRowsDiv = mainView.querySelector('.total-rows');
+            if (!totalRowsDiv) {
+                totalRowsDiv = document.createElement('div');
+                totalRowsDiv.className = 'total-rows';
+                mainView.insertBefore(totalRowsDiv, mainView.querySelector('.column-labels-wrapper'));
+            }
+            
+            totalRowsDiv.innerHTML = `
+                <span class="total-rows-text">Total Rows: ${allData.length}</span>
+                <div style="display: flex; gap: 10px; flex: 0 0 auto;">
+                    <input type="text" class="data-search-box" id="dataSearchBox" placeholder="Search data...">
+                    <button class="export-btn" id="exportBtn">Export</button>
+                </div>
+            `;
+            
+            // Add event listener to data search
+            const dataSearchBox = document.getElementById('dataSearchBox');
+            dataSearchBox.addEventListener('input', () => filterDataByContent(fields));
+            
+            // Add event listener to export button
+            const exportBtn = document.getElementById('exportBtn');
+            exportBtn.addEventListener('click', () => exportToCSV(fields));
+
+            const columnLabels = document.getElementById('columnLabels');
+            columnLabels.innerHTML = '';
+            fields.forEach((field, idx) => {
+                const label = document.createElement('div');
+                label.className = `column-label ${colors[idx % colors.length]}`;
+                label.textContent = field;
+                columnLabels.appendChild(label);
+            });
+
+            const dataTable = document.getElementById('dataTable');
+            dataTable.innerHTML = '';
+
+            allData.forEach(row => {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'table-row';
+                fields.forEach((field, idx) => {
+                    const cell = document.createElement('div');
+                    cell.className = 'table-cell';
+                    const value = row[field] || '';
+                    cell.textContent = value;
+                    rowDiv.appendChild(cell);
+                });
+                dataTable.appendChild(rowDiv);
+            });
+        }
+
+        function filterDataByContent(fields) {
+            const searchTerm = document.getElementById('dataSearchBox').value.toLowerCase().trim();
+            const dataTable = document.getElementById('dataTable');
+            
+            if (!searchTerm) {
+                // Show all rows if search is empty
+                dataTable.innerHTML = '';
+                allData.forEach(row => {
+                    const rowDiv = document.createElement('div');
+                    rowDiv.className = 'table-row';
+                    fields.forEach((field, idx) => {
+                        const cell = document.createElement('div');
+                        cell.className = 'table-cell';
+                        const value = row[field] || '';
+                        cell.innerHTML = value;
+                        rowDiv.appendChild(cell);
+                    });
+                    dataTable.appendChild(rowDiv);
+                });
+                return;
+            }
+            
+            // Filter rows that contain the search term
+            const filteredRows = allData.filter(row => {
+                return fields.some(field => {
+                    const value = String(row[field] || '').toLowerCase();
+                    return value.includes(searchTerm);
+                });
+            });
+            
+            dataTable.innerHTML = '';
+            filteredRows.forEach(row => {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'table-row';
+                fields.forEach((field, idx) => {
+                    const cell = document.createElement('div');
+                    cell.className = 'table-cell';
+                    const value = row[field] || '';
+                    cell.innerHTML = highlightDataSearchTerm(value, searchTerm);
+                    rowDiv.appendChild(cell);
+                });
+                dataTable.appendChild(rowDiv);
+            });
+        }
+
+
+
+        function highlightDataSearchTerm(text, searchTerm) {
+            if (!searchTerm) return text;
+
+            const regex = new RegExp(`(${escapeRegex(searchTerm)})`, 'gi');
+            return String(text).replace(regex, '<span class="highlight">$1</span>');
+        }
+
+        function escapeRegex(str) {
+            return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        function updateClearFiltersButton() {
+            const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+            const dropdowns = dropdownContainer.querySelectorAll('.field-dropdown');
+            
+            // Check if any filter is applied
+            const hasFieldFilter = Array.from(dropdowns).some(dd => dd && dd.value);
+            
+            if (hasFieldFilter) {
+                clearFiltersBtn.classList.add('show');
+            } else {
+                clearFiltersBtn.classList.remove('show');
+            }
+        }
+
+        function clearAllFilters() {
+            const dataSearchBox = document.getElementById('dataSearchBox');
+            
+            // Remove all dropdowns and recreate just one
+            dropdownContainer.innerHTML = '';
+            const select = document.createElement('select');
+            select.className = 'field-dropdown';
+            select.id = 'fieldDropdown0';
+            select.innerHTML = '<option value="">Select a field to display</option>';
+            allFields.forEach(field => {
+                const option = document.createElement('option');
+                option.value = field;
+                option.textContent = field;
+                select.appendChild(option);
+            });
+            select.addEventListener('change', function() {
+                handleFieldChange(0);
+                updateClearFiltersButton();
+            });
+            dropdownContainer.appendChild(select);
+            
+            // Clear data search box
+            if (dataSearchBox) {
+                dataSearchBox.value = '';
+            }
+            
+            // Display all data with all fields
+            displayData(allFields);
+            updateClearFiltersButton();
+        }
+
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = `status-message ${type}`;
+            setTimeout(() => {
+                statusEl.className = 'status-message';
+            }, 4000);
+        }
+
+        function exportToCSV(fields) {
+            const dataTable = document.getElementById('dataTable');
+            const rows = dataTable.querySelectorAll('.table-row');
+            
+            // Collect visible data
+            const csvData = [];
+            
+            // Add header row with trailing comma
+            csvData.push(fields.join(',') + ',');
+            
+            // Add data rows
+            rows.forEach((row, rowIndex) => {
+                const cells = row.querySelectorAll('.table-cell');
+                const rowData = Array.from(cells).map((cell, cellIndex) => {
+                    let value = cell.textContent;
+                    const fieldName = fields[cellIndex] || '';
+                    
+                    // Check if we should skip single quotes for this field
+                    const hasError = fieldName.toLowerCase().includes('error');
+                    const isCardType = fieldName.toLowerCase() === 'card type';
+                    const skipSingleQuotes = hasError || isCardType;
+                    
+                    // Check if value looks like a GUID or account number (contains hyphens and alphanumeric)
+                    const isGUID = /^[a-zA-Z0-9]{4,}-[a-zA-Z0-9]{4,}/.test(value);
+                    
+                    // Wrap GUIDs in single quotes (unless excluded by field rules)
+                    if (isGUID && !skipSingleQuotes) {
+                        value = "'" + value + "'";
+                    }
+                    
+                    // Escape quotes and wrap in quotes if contains comma
+                    if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+                        value = '"' + value.replace(/"/g, '""') + '"';
+                    }
+                    return value;
+                });
+                
+                // Add trailing comma to all rows except the last one
+                const isLastRow = rowIndex === rows.length - 1;
+                const rowLine = rowData.join(',') + (isLastRow ? '' : ',');
+                csvData.push(rowLine);
+            });
+            
+            // Create blob and download
+            const csv = csvData.join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', 'export_' + new Date().toISOString().slice(0,10) + '.csv');
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Sync horizontal scroll between column labels and data table
+        document.addEventListener('DOMContentLoaded', function() {
+            const dataTable = document.getElementById('dataTable');
+            const columnLabelsWrapper = document.querySelector('.column-labels-wrapper');
+            
+            if (dataTable && columnLabelsWrapper) {
+                dataTable.addEventListener('scroll', function() {
+                    columnLabelsWrapper.scrollLeft = dataTable.scrollLeft;
+                });
+            }
+        });
+    </script>
+</body>
+</html>
