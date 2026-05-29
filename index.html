@@ -740,9 +740,11 @@
                     let parsed = false; // Track whether we successfully parsed the file
 
                     // --- Try JSON first ---
-                    // If the content starts with { or [ it's likely JSON
+                    // If the content starts with { or [ AND ends with } or ] it's likely JSON
                     const trimmedContent = content.trim();
-                    if (trimmedContent.startsWith('{') || trimmedContent.startsWith('[')) {
+                    const looksLikeJSON = (trimmedContent.startsWith('{') && trimmedContent.endsWith('}')) ||
+                                         (trimmedContent.startsWith('[') && trimmedContent.endsWith(']'));
+                    if (looksLikeJSON) {
                         try {
                             console.log('Attempting JSON parse...');
                             parseJSON(content); // Standard JSON parse
