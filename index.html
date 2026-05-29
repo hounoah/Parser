@@ -577,57 +577,65 @@
     </div>
 
     <script>
+        // Global arrays to store the loaded data rows and their field names
         let allData = [];
         let allFields = [];
+
+        // Rotating color classes used to visually distinguish column headers
         const colors = ['color-1', 'color-2', 'color-3', 'color-4', 'color-5', 'color-6'];
 
-        // File upload handler
+        // Grab references to the file input and dropdown container from the DOM
         const fileInput = document.getElementById('fileInput');
         const dropdownContainer = document.getElementById('dropdownContainer');
 
+        // If the file input exists, wire up the change event so uploads are handled automatically
         if (fileInput) {
             fileInput.addEventListener('change', handleFileUpload);
         } else {
             console.error('File input element not found');
         }
 
-        // Attach change listener to first dropdown
+        // Listen for changes on the first field dropdown and update filters/display accordingly
         document.getElementById('fieldDropdown0').addEventListener('change', function() {
             handleFieldChange(0);
             updateClearFiltersButton();
         });
         
-        // Drag and drop functionality for main view
+        // --- DRAG AND DROP: Main view panel ---
+        // Allow files to be dragged directly onto the right-hand data panel
         const mainView = document.querySelector('.main-view');
         if (mainView) {
+            // When a file is dragged over the panel, prevent the browser's default behaviour and add a visual highlight
             mainView.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 mainView.classList.add('drag-over');
             });
-            
+
+            // When the dragged item leaves the panel, remove the highlight
             mainView.addEventListener('dragleave', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 mainView.classList.remove('drag-over');
             });
-            
+
+            // When a file is dropped, read it and route it to the correct parser
             mainView.addEventListener('drop', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                mainView.classList.remove('drag-over');
-                
-                const files = e.dataTransfer.files;
+                mainView.classList.remove('drag-over'); // Remove highlight on drop
+
+                const files = e.dataTransfer.files; // Get the dropped files
                 if (files.length > 0) {
-                    const file = files[0];
-                    // Check if it's a CSV or JSON file
+                    const file = files[0]; // Only process the first file
+                    // Only accept .csv and .json files
                     if (file.name.endsWith('.csv') || file.name.endsWith('.json')) {
-                        document.getElementById('uploadedFilename').textContent = file.name;
-                        const reader = new FileReader();
+                        document.getElementById('uploadedFilename').textContent = file.name; // Show filename in the sidebar
+                        const reader = new FileReader(); // Create a reader to read file contents as text
                         reader.onload = (event) => {
                             try {
-                                const content = event.target.result;
-                                
+                                const content = event.target.result; // Raw text content of the file
+                                // Route to the correct parser based on file extension
                                 if (file.name.endsWith('.csv')) {
                                     parseCSV(content);
                                 } else if (file.name.endsWith('.json')) {
@@ -640,7 +648,7 @@
                         reader.onerror = () => {
                             showStatus('Error reading file', 'error');
                         };
-                        reader.readAsText(file);
+                        reader.readAsText(file); // Start reading the file
                     } else {
                         showStatus('Invalid file type. Please upload CSV or JSON.', 'error');
                     }
@@ -648,37 +656,36 @@
             });
         }
         
-        // Drag and drop functionality for file input wrapper
+        // --- DRAG AND DROP: Upload button area ---
+        // Also allow files to be dragged onto the "Choose CSV or JSON" button itself
         const fileInputWrapper = document.querySelector('.file-input-wrapper');
         if (fileInputWrapper) {
             fileInputWrapper.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                fileInputWrapper.classList.add('drag-over');
+                fileInputWrapper.classList.add('drag-over'); // Highlight the button
             });
-            
+
             fileInputWrapper.addEventListener('dragleave', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                fileInputWrapper.classList.remove('drag-over');
+                fileInputWrapper.classList.remove('drag-over'); // Remove highlight
             });
-            
+
             fileInputWrapper.addEventListener('drop', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 fileInputWrapper.classList.remove('drag-over');
-                
+
                 const files = e.dataTransfer.files;
                 if (files.length > 0) {
                     const file = files[0];
-                    // Check if it's a CSV or JSON file
                     if (file.name.endsWith('.csv') || file.name.endsWith('.json')) {
                         document.getElementById('uploadedFilename').textContent = file.name;
                         const reader = new FileReader();
                         reader.onload = (event) => {
                             try {
                                 const content = event.target.result;
-                                
                                 if (file.name.endsWith('.csv')) {
                                     parseCSV(content);
                                 } else if (file.name.endsWith('.json')) {
@@ -699,55 +706,57 @@
             });
         }
         
-        // Clear filters button
+        // Wire up the Clear Filters button — resets field selections without unloading the data
         const clearFiltersBtn = document.getElementById('clearFiltersBtn');
         if (clearFiltersBtn) {
             clearFiltersBtn.addEventListener('click', clearAllFilters);
         }
 
+        // Wire up the Clear Data button — fully resets the app back to its initial empty state
         const clearDataBtn = document.getElementById('clearDataBtn');
         if (clearDataBtn) {
             clearDataBtn.addEventListener('click', clearAllData);
         }
 
+        // --- FILE UPLOAD HANDLER ---
+        // Called when the user selects a file via the file picker button
         function handleFileUpload(e) {
             console.log('File upload triggered');
-            const file = e.target.files[0];
+            const file = e.target.files[0]; // Get the first selected file
             if (!file) {
                 console.log('No file selected');
-                return;
+                return; // Exit early if no file was chosen
             }
 
             console.log('File selected:', file.name);
-            document.getElementById('uploadedFilename').textContent = file.name;
-            const reader = new FileReader();
+            document.getElementById('uploadedFilename').textContent = file.name; // Display filename in sidebar
+
+            const reader = new FileReader(); // Create a FileReader to read the file as text
             reader.onload = (event) => {
                 try {
-                    const content = event.target.result;
+                    const content = event.target.result; // The raw text content of the uploaded file
                     console.log('File read successfully');
-                    
-                    // Try to determine format: JSON first, then CSV
-                    let parsed = false;
-                    
-                    // Try JSON parsing first
+
+                    let parsed = false; // Track whether we successfully parsed the file
+
+                    // --- Try JSON first ---
+                    // If the content starts with { or [ it's likely JSON
                     const trimmedContent = content.trim();
                     if (trimmedContent.startsWith('{') || trimmedContent.startsWith('[')) {
                         try {
                             console.log('Attempting JSON parse...');
-                            parseJSON(content);
+                            parseJSON(content); // Standard JSON parse
                             parsed = true;
                         } catch (jsonError) {
                             console.log('JSON parse failed:', jsonError.message);
-                            // Try to extract JSON objects from content
                             try {
-                                console.log('Attempting smart JSON extraction...');
+                                console.log('Attempting smart JSON extraction...'); // Try to extract JSON arrays/objects even from malformed content
                                 parseSmartJSON(content);
                                 parsed = true;
                             } catch (smartError) {
                                 console.log('Smart JSON extraction failed:', smartError.message);
-                                // Try JSONL format (one JSON object per line)
                                 try {
-                                    console.log('Attempting JSONL parse...');
+                                    console.log('Attempting JSONL parse...'); // JSONL = one JSON object per line
                                     parseJSONL(content);
                                     parsed = true;
                                 } catch (jsonlError) {
@@ -756,8 +765,8 @@
                             }
                         }
                     }
-                    
-                    // If not JSON, try CSV
+
+                    // --- Fall back to CSV if JSON didn't work ---
                     if (!parsed) {
                         console.log('Parsing as CSV');
                         try {
@@ -768,8 +777,8 @@
                             showStatus('Error parsing file: ' + csvError.message, 'error');
                         }
                     }
-                    
-                    // If still not parsed, show error
+
+                    // --- If nothing worked, show a clear error to the user ---
                     if (!parsed) {
                         showStatus('Invalid file format. Please upload valid CSV or JSON.', 'error');
                     }
@@ -782,103 +791,137 @@
                 console.error('FileReader error');
                 showStatus('Error reading file', 'error');
             };
-            reader.readAsText(file);
+            reader.readAsText(file); // Kick off the read — triggers reader.onload when done
         }
 
+        // --- CSV PARSER ---
+        // Splits the raw CSV text into rows and columns, validates structure, and populates allData
         function parseCSV(content) {
+            // Split the file into individual lines, removing any blank lines
             const lines = content.split('\n').filter(line => line.trim());
             console.log('Total lines after filtering:', lines.length);
-            
+
+            // A valid CSV needs at least a header row and one data row
             if (lines.length < 2) {
                 showStatus('CSV must have headers and data', 'error');
                 return;
             }
 
+            // The first line is the header row — split by comma to get each field name
             allFields = lines[0].split(',').map(f => f.trim());
             console.log('Fields parsed:', allFields);
-            
-            allData = lines.slice(1).map(line => {
-                const values = line.split(',').map(v => v.trim());
+
+            const expectedColumns = allFields.length; // Every data row must have this many columns
+            const invalidRows = []; // Collect any rows that don't match the expected column count
+
+            // Convert each data line into an object where keys are field names and values are the cell values
+            allData = lines.slice(1).map((line, idx) => {
+                const values = line.split(',').map(v => v.trim()); // Split each line by comma
+
+                // If this row has the wrong number of columns, log it for the error report
+                if (values.length !== expectedColumns) {
+                    invalidRows.push({ row: idx + 2, expected: expectedColumns, got: values.length });
+                }
+
+                // Build a key-value object for this row using the header fields as keys
                 const row = {};
-                allFields.forEach((field, idx) => {
-                    row[field] = values[idx] || '';
+                allFields.forEach((field, i) => {
+                    row[field] = values[i] || ''; // Use empty string if a value is missing
                 });
                 return row;
             });
 
+            // If any rows had wrong column counts, stop and show a detailed error — don't load bad data silently
+            if (invalidRows.length > 0) {
+                const examples = invalidRows.slice(0, 3).map(r => `Row ${r.row} (expected ${r.expected} cols, got ${r.got})`).join('; ');
+                const more = invalidRows.length > 3 ? ` ...and ${invalidRows.length - 3} more` : '';
+                showStatus(`Invalid CSV — mismatched columns detected: ${examples}${more}`, 'error');
+                return;
+            }
+
             console.log('Data parsed:', allData.length, 'records');
-            populateDropdown();
-            displayData(allFields);
+            populateDropdown();       // Fill the field selector dropdowns with the parsed field names
+            displayData(allFields);   // Render the data table
             showStatus(`Loaded ${allData.length} records with ${allFields.length} fields`, 'success');
-            updateClearFiltersButton();
+            updateClearFiltersButton(); // Show or hide the Clear Filters / Clear Data buttons as needed
         }
 
+        // --- OBJECT FLATTENER ---
+        // Recursively flattens a nested object into a single-level object with dot-notation keys
+        // e.g. { address: { city: 'NY' } } becomes { 'address.city': 'NY' }
         function flattenObject(obj, prefix = '') {
             const result = {};
             for (const key of Object.keys(obj)) {
-                const fullKey = prefix ? prefix + '.' + key : key;
+                const fullKey = prefix ? prefix + '.' + key : key; // Build dot-notation key
                 const value = obj[key];
                 if (value && typeof value === 'object' && !Array.isArray(value)) {
+                    // If the value is a nested object, recurse into it
                     Object.assign(result, flattenObject(value, fullKey));
                 } else if (Array.isArray(value)) {
-                    result[fullKey] = value.map(item => 
+                    // If the value is an array, join its items into a comma-separated string
+                    result[fullKey] = value.map(item =>
                         typeof item === 'object' ? JSON.stringify(item) : item
                     ).join(', ');
                 } else {
+                    // Otherwise just store the value as-is
                     result[fullKey] = value;
                 }
             }
             return result;
         }
 
+        // --- RECORD EXTRACTOR ---
+        // Figures out where the actual data rows live inside a parsed JSON structure
+        // Handles arrays of objects, objects wrapping arrays, and single objects
         function extractRecords(data) {
-            // If it's already an array of objects, use it directly
+            // If the top level is already an array, use it directly
             if (Array.isArray(data)) {
                 if (data.length === 0) return [];
-                // Array of primitives - wrap each in an object
+                // If it's an array of primitives (not objects), wrap each value in an object
                 if (typeof data[0] !== 'object' || data[0] === null) {
                     return data.map(item => ({ value: String(item) }));
                 }
-                return data.map(item => flattenObject(item));
+                return data.map(item => flattenObject(item)); // Flatten each object in the array
             }
-            
-            // If it's an object, look for the first key that holds an array of objects
+
+            // If the top level is an object, search its keys for an array of records
             if (typeof data === 'object' && data !== null) {
                 const keys = Object.keys(data);
-                
-                // Check each key for an array of objects
+
                 for (const key of keys) {
                     const val = data[key];
                     if (Array.isArray(val) && val.length > 0) {
                         if (typeof val[0] === 'object' && val[0] !== null) {
-                            return val.map(item => flattenObject(item));
+                            return val.map(item => flattenObject(item)); // Found an array of objects — use it
                         }
-                        // Array of primitives under a key - use key as column name
+                        // Found an array of primitives — wrap each in an object using the key as the column name
                         return val.map(item => ({ [key]: String(item) }));
                     }
                 }
-                
-                // No array found - flatten the object itself as a single record
+
+                // No array found — treat the entire object as a single record
                 return [flattenObject(data)];
             }
-            
-            return [];
+
+            return []; // Couldn't find any usable records
         }
 
+        // --- SMART JSON PARSER ---
+        // Used when standard JSON.parse fails — tries two fallback strategies to extract data
         function parseSmartJSON(content) {
-            // Try to find the array portion [...] in the content
+            // Strategy 1: Find the first [...] array block in the content and parse just that
             const arrayStart = content.indexOf('[');
             const arrayEnd = content.lastIndexOf(']');
-            
+
             if (arrayStart !== -1 && arrayEnd > arrayStart) {
-                const arrayContent = content.substring(arrayStart, arrayEnd + 1);
+                const arrayContent = content.substring(arrayStart, arrayEnd + 1); // Slice out the array text
                 try {
-                    const arr = JSON.parse(arrayContent);
+                    const arr = JSON.parse(arrayContent); // Try to parse the extracted array
                     if (Array.isArray(arr) && arr.length > 0) {
-                        allData = arr.map(item => 
+                        allData = arr.map(item =>
                             typeof item === 'object' && item !== null ? flattenObject(item) : { value: String(item) }
                         );
-                        allFields = [...new Set(allData.flatMap(Object.keys))];
+                        allFields = [...new Set(allData.flatMap(Object.keys))]; // Collect all unique field names across all records
                         populateDropdown();
                         displayData(allFields);
                         showStatus(`Loaded ${allData.length} record(s) with ${allFields.length} fields`, 'success');
@@ -886,25 +929,25 @@
                         return;
                     }
                 } catch (e) {
-                    // Array extraction failed, try regex approach
+                    // Array extraction failed — fall through to strategy 2
                 }
             }
-            
-            // Regex approach: find all {...} objects with simple key-value pairs
+
+            // Strategy 2: Use a regex to find all {...} objects in the content individually
             const objectMatches = [];
-            const regex = /\{[^{}]*\}/g;
+            const regex = /\{[^{}]*\}/g; // Match simple flat objects
             let match;
             while ((match = regex.exec(content)) !== null) {
                 try {
-                    const obj = JSON.parse(match[0]);
+                    const obj = JSON.parse(match[0]); // Try parsing each found object
                     if (typeof obj === 'object' && obj !== null && Object.keys(obj).length > 0) {
-                        objectMatches.push(obj);
+                        objectMatches.push(obj); // Only keep objects that have actual keys
                     }
                 } catch (e) {
-                    // Skip invalid matches
+                    // Skip anything that doesn't parse cleanly
                 }
             }
-            
+
             if (objectMatches.length > 0) {
                 allData = objectMatches.map(item => flattenObject(item));
                 allFields = [...new Set(allData.flatMap(Object.keys))];
@@ -914,53 +957,59 @@
                 updateClearFiltersButton();
                 return;
             }
-            
-            throw new Error('Could not extract JSON data');
+
+            throw new Error('Could not extract JSON data'); // Both strategies failed
         }
 
+        // --- STANDARD JSON PARSER ---
+        // Parses well-formed JSON and routes the data through extractRecords to normalize the structure
         function parseJSON(content) {
-            const data = JSON.parse(content);
+            const data = JSON.parse(content); // Will throw if JSON is malformed
             console.log('JSON parsed successfully');
-            
-            allData = extractRecords(data);
-            
+
+            allData = extractRecords(data); // Normalize the structure into a flat array of row objects
+
             if (allData.length === 0) {
-                throw new Error('No data records found in JSON');
+                throw new Error('No data records found in JSON'); // Let the caller know nothing usable was found
             }
-            
+
+            // Collect all unique field names across every record
             allFields = [...new Set(allData.flatMap(Object.keys))];
             console.log('Parsed', allData.length, 'records with fields:', allFields);
-            
+
             populateDropdown();
             displayData(allFields);
             showStatus(`Loaded ${allData.length} record(s) with ${allFields.length} fields`, 'success');
             updateClearFiltersButton();
         }
 
+        // --- JSONL PARSER ---
+        // JSONL (JSON Lines) is a format where each line is a separate JSON object
+        // Used as a last resort when standard JSON parsing fails
         function parseJSONL(content) {
-            const lines = content.trim().split('\n').filter(line => line.trim());
+            const lines = content.trim().split('\n').filter(line => line.trim()); // Split into lines, skip blanks
             console.log('Attempting to parse', lines.length, 'lines as JSONL');
-            
+
             allData = [];
-            const fieldSet = new Set();
-            
+            const fieldSet = new Set(); // Track all unique field names across all lines
+
             lines.forEach((line, idx) => {
                 try {
-                    const obj = JSON.parse(line);
+                    const obj = JSON.parse(line); // Try to parse each line as its own JSON object
                     if (typeof obj === 'object' && obj !== null) {
-                        allData.push(obj);
-                        Object.keys(obj).forEach(key => fieldSet.add(key));
+                        allData.push(obj); // Add the parsed object as a row
+                        Object.keys(obj).forEach(key => fieldSet.add(key)); // Register its fields
                     }
                 } catch (e) {
-                    console.warn(`Line ${idx + 1} is not valid JSON`);
+                    console.warn(`Line ${idx + 1} is not valid JSON`); // Skip lines that can't be parsed
                 }
             });
-            
+
             if (allData.length === 0) {
-                throw new Error('No valid JSON objects found in JSONL');
+                throw new Error('No valid JSON objects found in JSONL'); // Nothing parsed — let caller handle it
             }
-            
-            allFields = Array.from(fieldSet);
+
+            allFields = Array.from(fieldSet); // Convert the set of field names to an array
             console.log('JSONL parsed:', allData.length, 'records with', allFields.length, 'fields');
             populateDropdown();
             displayData(allFields);
@@ -968,73 +1017,72 @@
             updateClearFiltersButton();
         }
 
+        // --- POPULATE DROPDOWNS ---
+        // Refreshes all field selector dropdowns with the current list of available fields
         function populateDropdown() {
-            const dropdowns = dropdownContainer.querySelectorAll('.field-dropdown');
-            
+            const dropdowns = dropdownContainer.querySelectorAll('.field-dropdown'); // Get all current dropdowns
+
             dropdowns.forEach((dropdown) => {
-                const currentVal = dropdown.value;
-                dropdown.innerHTML = '<option value="">Select a field to display</option>';
+                const currentVal = dropdown.value; // Remember the currently selected value so we can restore it
+                dropdown.innerHTML = '<option value="">Select a field to display</option>'; // Reset options
                 allFields.forEach(field => {
                     const option = document.createElement('option');
                     option.value = field;
                     option.textContent = field;
-                    dropdown.appendChild(option);
+                    dropdown.appendChild(option); // Add each field as a selectable option
                 });
-                dropdown.value = currentVal;
+                dropdown.value = currentVal; // Restore the previously selected value if it still exists
             });
             console.log('Dropdowns populated with', allFields.length, 'fields');
         }
 
+        // --- FIELD CHANGE HANDLER ---
+        // Called whenever a field dropdown selection changes
+        // Manages disabling already-selected options and adding/removing dropdowns dynamically
         function handleFieldChange(dropdownIndex) {
             const dropdowns = Array.from(dropdownContainer.querySelectorAll('.field-dropdown'));
-            const currentDropdown = dropdowns[dropdownIndex];
-            
-            // Collect all selected fields
+            const currentDropdown = dropdowns[dropdownIndex]; // The dropdown that just changed
+
+            // Collect all currently selected field values across all dropdowns
             const selectedFields = [];
             dropdowns.forEach(dd => {
                 if (dd.value) selectedFields.push(dd.value);
             });
-            
-            // Update all dropdowns to disable already selected fields
+
+            // Disable options that are already selected in another dropdown to prevent duplicates
             const selectedSet = new Set(selectedFields);
             dropdowns.forEach((dropdown) => {
                 const options = dropdown.querySelectorAll('option');
                 options.forEach((option) => {
                     if (option.value === '') {
-                        option.disabled = false;
+                        option.disabled = false; // Always keep the blank placeholder enabled
                     } else if (selectedSet.has(option.value) && option.value !== dropdown.value) {
-                        option.disabled = true;
+                        option.disabled = true; // Disable if selected elsewhere
                     } else {
                         option.disabled = false;
                     }
                 });
             });
-            
-            // If current dropdown has a value selected, add a new dropdown (if more fields available)
+
             if (currentDropdown.value) {
-                // Remove any empty dropdowns after the current one
+                // Remove any empty trailing dropdowns after the one that just changed
                 for (let i = dropdowns.length - 1; i > dropdownIndex; i--) {
                     if (!dropdowns[i].value) {
                         dropdowns[i].remove();
                     }
                 }
-                
-                // Add a new dropdown if there are still unselected fields
+                // Add a new empty dropdown if there are still unselected fields available
                 if (selectedFields.length < allFields.length) {
                     addNewDropdown();
                 }
             } else {
-                // If cleared, remove all empty dropdowns after this one
+                // If a dropdown was cleared, remove all empty dropdowns after it
                 for (let i = dropdowns.length - 1; i > dropdownIndex; i--) {
                     dropdowns[i].remove();
                 }
-                // Add back one empty dropdown after if there's a selected field before
-                if (dropdownIndex > 0 || selectedFields.length > 0) {
-                    // Only add if the current cleared one isn't the trailing empty one
-                }
             }
-            
-            // Display selected fields
+
+            // Re-render the table with whichever fields are currently selected (or all fields if none)
             if (selectedFields.length > 0) {
                 displayData(selectedFields);
             } else {
@@ -1042,20 +1090,24 @@
             }
         }
 
+        // --- ADD NEW DROPDOWN ---
+        // Dynamically creates and appends a new field selector dropdown to the sidebar
         function addNewDropdown() {
-            const idx = dropdownContainer.querySelectorAll('.field-dropdown').length;
+            const idx = dropdownContainer.querySelectorAll('.field-dropdown').length; // Index for the new dropdown's ID
             const select = document.createElement('select');
             select.className = 'field-dropdown';
             select.id = 'fieldDropdown' + idx;
             select.innerHTML = '<option value="">Select a field to display</option>';
+
+            // Populate with all available fields
             allFields.forEach(field => {
                 const option = document.createElement('option');
                 option.value = field;
                 option.textContent = field;
                 select.appendChild(option);
             });
-            
-            // Disable already selected options
+
+            // Disable any fields that are already selected in other dropdowns
             const selectedFields = getSelectedFields();
             const selectedSet = new Set(selectedFields);
             select.querySelectorAll('option').forEach(option => {
@@ -1063,39 +1115,45 @@
                     option.disabled = true;
                 }
             });
-            
+
+            // Wire up the change event for this new dropdown
             select.addEventListener('change', function() {
                 handleFieldChange(Array.from(dropdownContainer.querySelectorAll('.field-dropdown')).indexOf(select));
                 updateClearFiltersButton();
             });
-            
-            dropdownContainer.appendChild(select);
+
+            dropdownContainer.appendChild(select); // Add the new dropdown to the sidebar
         }
 
+        // --- GET SELECTED FIELDS ---
+        // Returns an array of the field names currently selected across all dropdowns
         function getSelectedFields() {
             const dropdowns = dropdownContainer.querySelectorAll('.field-dropdown');
             const fields = [];
             dropdowns.forEach(dd => {
-                if (dd.value) fields.push(dd.value);
+                if (dd.value) fields.push(dd.value); // Only include dropdowns that have a selection
             });
             return fields;
         }
 
 
 
+        // --- DISPLAY DATA ---
+        // Renders the data table and the top bar (total rows, search box, export button)
         function displayData(fields) {
-            if (allData.length === 0) return;
+            if (allData.length === 0) return; // Nothing to display
 
             const mainView = document.querySelector('.main-view');
-            
-            // Create or update total rows display
+
+            // Create the top bar div if it doesn't exist yet, and insert it before the column labels
             let totalRowsDiv = mainView.querySelector('.total-rows');
             if (!totalRowsDiv) {
                 totalRowsDiv = document.createElement('div');
                 totalRowsDiv.className = 'total-rows';
                 mainView.insertBefore(totalRowsDiv, mainView.querySelector('.column-labels-wrapper'));
             }
-            
+
+            // Render the top bar: total row count, filtered results count, search box, and export button
             totalRowsDiv.innerHTML = `
                 <span class="total-rows-text">Total Rows: ${allData.length}</span>
                 <span class="filtered-rows-text" id="filteredRowsText" style="display:none;"></span>
@@ -1104,34 +1162,35 @@
                     <button class="export-btn" id="exportBtn">Export</button>
                 </div>
             `;
-            
-            // Add event listener to data search
+
+            // Attach the search handler — filters the visible rows as the user types
             const dataSearchBox = document.getElementById('dataSearchBox');
             dataSearchBox.addEventListener('input', () => filterDataByContent(fields));
-            
-            // Add event listener to export button
+
+            // Attach the export handler — downloads the currently visible rows as a CSV
             const exportBtn = document.getElementById('exportBtn');
             exportBtn.addEventListener('click', () => exportToCSV(fields));
 
+            // Render the column label headers above the data table
             const columnLabels = document.getElementById('columnLabels');
             columnLabels.innerHTML = '';
             fields.forEach((field, idx) => {
                 const label = document.createElement('div');
-                label.className = `column-label ${colors[idx % colors.length]}`;
+                label.className = `column-label ${colors[idx % colors.length]}`; // Cycle through colour classes
                 label.textContent = field;
                 columnLabels.appendChild(label);
             });
 
+            // Render the data rows
             const dataTable = document.getElementById('dataTable');
-            dataTable.innerHTML = '';
-
+            dataTable.innerHTML = ''; // Clear any previously rendered rows
             allData.forEach(row => {
                 const rowDiv = document.createElement('div');
                 rowDiv.className = 'table-row';
                 fields.forEach((field, idx) => {
                     const cell = document.createElement('div');
                     cell.className = 'table-cell';
-                    const value = row[field] || '';
+                    const value = row[field] || ''; // Use empty string if this row doesn't have this field
                     cell.textContent = value;
                     rowDiv.appendChild(cell);
                 });
@@ -1139,12 +1198,14 @@
             });
         }
 
+        // --- FILTER DATA BY CONTENT (SEARCH) ---
+        // Called on every keystroke in the search box — filters visible rows to those matching the search term
         function filterDataByContent(fields) {
-            const searchTerm = document.getElementById('dataSearchBox').value.toLowerCase().trim();
+            const searchTerm = document.getElementById('dataSearchBox').value.toLowerCase().trim(); // Normalise to lowercase for case-insensitive matching
             const dataTable = document.getElementById('dataTable');
-            
+
             if (!searchTerm) {
-                // Show all rows if search is empty
+                // If the search box is empty, show all rows again
                 dataTable.innerHTML = '';
                 allData.forEach(row => {
                     const rowDiv = document.createElement('div');
@@ -1159,19 +1220,21 @@
                     dataTable.appendChild(rowDiv);
                 });
 
+                // Hide the "Showing X results" count since we're showing everything
                 const filteredText = document.getElementById('filteredRowsText');
                 if (filteredText) filteredText.style.display = 'none';
                 return;
             }
-            
-            // Filter rows that contain the search term
+
+            // Keep only rows where at least one field value contains the search term
             const filteredRows = allData.filter(row => {
                 return fields.some(field => {
                     const value = String(row[field] || '').toLowerCase();
-                    return value.includes(searchTerm);
+                    return value.includes(searchTerm); // Simple substring match
                 });
             });
-            
+
+            // Re-render only the matching rows, with the search term highlighted in yellow
             dataTable.innerHTML = '';
             filteredRows.forEach(row => {
                 const rowDiv = document.createElement('div');
@@ -1180,12 +1243,13 @@
                     const cell = document.createElement('div');
                     cell.className = 'table-cell';
                     const value = row[field] || '';
-                    cell.innerHTML = highlightDataSearchTerm(value, searchTerm);
+                    cell.innerHTML = highlightDataSearchTerm(value, searchTerm); // Wrap matches in a highlight span
                     rowDiv.appendChild(cell);
                 });
                 dataTable.appendChild(rowDiv);
             });
 
+            // Update the "Showing X results" counter next to Total Rows
             const filteredText = document.getElementById('filteredRowsText');
             if (filteredText) {
                 filteredText.style.display = 'inline';
@@ -1195,32 +1259,37 @@
 
 
 
+        // --- HIGHLIGHT SEARCH TERM ---
+        // Wraps every occurrence of the search term in the cell text with a <span class="highlight">
+        // so it can be styled with a yellow background in CSS
         function highlightDataSearchTerm(text, searchTerm) {
-            if (!searchTerm) return text;
-
-            const regex = new RegExp(`(${escapeRegex(searchTerm)})`, 'gi');
-            return String(text).replace(regex, '<span class="highlight">$1</span>');
+            if (!searchTerm) return text; // Nothing to highlight if search is empty
+            const regex = new RegExp(`(${escapeRegex(searchTerm)})`, 'gi'); // Case-insensitive match
+            return String(text).replace(regex, '<span class="highlight">$1</span>'); // Wrap each match
         }
 
+        // --- ESCAPE REGEX SPECIAL CHARACTERS ---
+        // Prevents user input like "." or "*" from being treated as regex operators
         function escapeRegex(str) {
             return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         }
 
+        // --- UPDATE CLEAR FILTERS / CLEAR DATA BUTTONS ---
+        // Shows or hides the two action buttons based on the current state
         function updateClearFiltersButton() {
             const clearFiltersBtn = document.getElementById('clearFiltersBtn');
             const clearDataBtn = document.getElementById('clearDataBtn');
             const dropdowns = dropdownContainer.querySelectorAll('.field-dropdown');
-            
-            // Check if any filter is applied
+
+            // Show Clear Filters only if at least one field dropdown has a selection
             const hasFieldFilter = Array.from(dropdowns).some(dd => dd && dd.value);
-            
             if (hasFieldFilter) {
                 clearFiltersBtn.classList.add('show');
             } else {
                 clearFiltersBtn.classList.remove('show');
             }
 
-            // Show Clear Data only when data is loaded
+            // Show Clear Data only if data has been loaded
             if (allData.length > 0) {
                 clearDataBtn.classList.add('show');
             } else {
@@ -1228,22 +1297,24 @@
             }
         }
 
+        // --- CLEAR ALL DATA ---
+        // Fully resets the app to its initial empty state, as if the page was freshly loaded
         function clearAllData() {
-            allData = [];
-            allFields = [];
+            allData = [];   // Clear the stored data rows
+            allFields = []; // Clear the stored field names
 
-            // Reset file input
+            // Reset the file picker so the same file can be re-uploaded if needed
             const fileInput = document.getElementById('fileInput');
             if (fileInput) fileInput.value = '';
 
-            // Clear filename display
+            // Clear the filename display in the sidebar
             document.getElementById('uploadedFilename').textContent = '';
 
-            // Clear status message
+            // Hide and clear the status message
             const statusEl = document.getElementById('statusMessage');
             if (statusEl) { statusEl.textContent = ''; statusEl.className = 'status-message'; }
 
-            // Reset dropdowns
+            // Remove all dropdowns and replace with a single fresh empty one
             dropdownContainer.innerHTML = '';
             const select = document.createElement('select');
             select.className = 'field-dropdown';
@@ -1255,21 +1326,24 @@
             });
             dropdownContainer.appendChild(select);
 
-            // Clear data search box
+            // Clear the search box in the data panel
             const dataSearchBox = document.getElementById('dataSearchBox');
             if (dataSearchBox) dataSearchBox.value = '';
 
-            // Reset data table
+            // Reset the data table back to the empty placeholder message
             document.getElementById('dataTable').innerHTML = '<div class="empty-state">Drag and drop or upload a file to get started</div>';
-            document.getElementById('columnLabels').innerHTML = '';
+            document.getElementById('columnLabels').innerHTML = ''; // Clear column headers
 
-            updateClearFiltersButton();
+            updateClearFiltersButton(); // Hide both action buttons since there's no data
         }
 
+        // --- CLEAR ALL FILTERS ---
+        // Resets the field dropdowns and search box without unloading the data
+        // The full dataset stays in memory — only the view filters are cleared
         function clearAllFilters() {
             const dataSearchBox = document.getElementById('dataSearchBox');
-            
-            // Remove all dropdowns and recreate just one
+
+            // Remove all dropdowns and create one fresh empty one, pre-populated with all fields
             dropdownContainer.innerHTML = '';
             const select = document.createElement('select');
             select.className = 'field-dropdown';
@@ -1286,90 +1360,96 @@
                 updateClearFiltersButton();
             });
             dropdownContainer.appendChild(select);
-            
-            // Clear data search box
+
+            // Clear the search box if it's visible
             if (dataSearchBox) {
                 dataSearchBox.value = '';
             }
-            
-            // Display all data with all fields
+
+            // Re-render the table showing all fields and all rows
             displayData(allFields);
             updateClearFiltersButton();
         }
 
+        // --- SHOW STATUS MESSAGE ---
+        // Displays a temporary status message (success or error) below the upload button
+        // Automatically clears after 4 seconds
         function showStatus(message, type) {
             const statusEl = document.getElementById('statusMessage');
-            statusEl.textContent = message;
-            statusEl.className = `status-message ${type}`;
+            statusEl.textContent = message;                      // Set the message text
+            statusEl.className = `status-message ${type}`;      // Apply 'success' or 'error' styling class
             setTimeout(() => {
-                statusEl.className = 'status-message';
+                statusEl.className = 'status-message';          // Remove styling after 4 seconds to hide the message
             }, 4000);
         }
 
+        // --- EXPORT TO CSV ---
+        // Downloads the currently visible rows (post-filter) as a CSV file
         function exportToCSV(fields) {
             const dataTable = document.getElementById('dataTable');
-            const rows = dataTable.querySelectorAll('.table-row');
-            
-            // Collect visible data
+            const rows = dataTable.querySelectorAll('.table-row'); // Only export what's currently visible
+
             const csvData = [];
-            
-            // Add header row with trailing comma
+
+            // First line is the header row — field names joined by commas
             csvData.push(fields.join(',') + ',');
-            
-            // Add data rows
+
+            // Build a CSV line for each visible data row
             rows.forEach((row, rowIndex) => {
                 const cells = row.querySelectorAll('.table-cell');
                 const rowData = Array.from(cells).map((cell, cellIndex) => {
                     let value = cell.textContent;
                     const fieldName = fields[cellIndex] || '';
-                    
-                    // Check if we should skip single quotes for this field
+
+                    // Some fields should NOT have single quotes added (e.g. error fields, card type)
                     const hasError = fieldName.toLowerCase().includes('error');
                     const isCardType = fieldName.toLowerCase() === 'card type';
                     const skipSingleQuotes = hasError || isCardType;
-                    
-                    // Check if value looks like a GUID or account number (contains hyphens and alphanumeric)
+
+                    // GUIDs and account numbers (alphanumeric with hyphens) get wrapped in single quotes
+                    // to prevent spreadsheet apps from misinterpreting them as formulas or numbers
                     const isGUID = /^[a-zA-Z0-9]{4,}-[a-zA-Z0-9]{4,}/.test(value);
-                    
-                    // Wrap GUIDs in single quotes (unless excluded by field rules)
                     if (isGUID && !skipSingleQuotes) {
                         value = "'" + value + "'";
                     }
-                    
-                    // Escape quotes and wrap in quotes if contains comma
+
+                    // If a value contains commas, double-quotes, or newlines, wrap the whole value in double quotes
+                    // and escape any existing double quotes by doubling them (standard CSV escaping)
                     if (value.includes(',') || value.includes('"') || value.includes('\n')) {
                         value = '"' + value.replace(/"/g, '""') + '"';
                     }
                     return value;
                 });
-                
-                // Add trailing comma to all rows except the last one
+
+                // Add a trailing comma to all rows except the last one (matches original format)
                 const isLastRow = rowIndex === rows.length - 1;
                 const rowLine = rowData.join(',') + (isLastRow ? '' : ',');
                 csvData.push(rowLine);
             });
-            
-            // Create blob and download
+
+            // Build the full CSV string and trigger a file download in the browser
             const csv = csvData.join('\n');
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' }); // Create a downloadable file blob
+            const link = document.createElement('a'); // Create a temporary anchor element to trigger the download
             const url = URL.createObjectURL(blob);
             link.setAttribute('href', url);
-            link.setAttribute('download', 'export_' + new Date().toISOString().slice(0,10) + '.csv');
+            link.setAttribute('download', 'export_' + new Date().toISOString().slice(0,10) + '.csv'); // Filename includes today's date
             link.style.visibility = 'hidden';
             document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            link.click();                  // Programmatically click the link to start the download
+            document.body.removeChild(link); // Clean up the temporary element
         }
 
-        // Sync horizontal scroll between column labels and data table
+        // --- SYNC HORIZONTAL SCROLL ---
+        // Keeps the column label headers in sync with the horizontal scroll position of the data table
+        // so headers always line up with their columns as the user scrolls right
         document.addEventListener('DOMContentLoaded', function() {
             const dataTable = document.getElementById('dataTable');
             const columnLabelsWrapper = document.querySelector('.column-labels-wrapper');
-            
+
             if (dataTable && columnLabelsWrapper) {
                 dataTable.addEventListener('scroll', function() {
-                    columnLabelsWrapper.scrollLeft = dataTable.scrollLeft;
+                    columnLabelsWrapper.scrollLeft = dataTable.scrollLeft; // Mirror the scroll position
                 });
             }
         });
